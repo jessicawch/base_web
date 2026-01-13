@@ -1,0 +1,80 @@
+🔒 Security Disclosure (Confidential – Please Do Not Merge)
+Summary
+
+This PR documents a critical business logic vulnerability in the Bridge.receiveTokens flow that allows non-canonical bytes32 recipient values to bypass validation and result in irreversible fund loss.
+
+The issue arises from accepting arbitrary bytes32 values as recipient addresses and later truncating them to address(uint160(...)), which silently discards high bits. This allows malformed inputs that pass validation but resolve to unintended addresses at execution time.
+Impact
+
+Funds can be irreversibly burned or misdirected
+
+Affected paths include native coin withdrawals and ERC-20 mint/transfer flows
+
+Vulnerability is exploitable by a relayer role with valid permissions
+
+Issue is not theoretical — a reproducible PoC demonstrates the behavior on-chain
+
+Root Cause
+
+receiveTokensParams.toAddress is validated only as bytes32 != 0
+
+Later cast using:
+
+address(uint160(uint256(receiveTokensParams.toAddress)))
+
+
+High-bit contamination is not checked or rejected
+
+Non-canonical bytes32 values truncate silently during address conversion
+
+Proof of Concept
+
+A Foundry-based test demonstrates:
+
+A poisoned bytes32 recipient value
+
+Successful validation
+
+Silent truncation to a canonical address
+
+Execution resulting in fund loss
+
+⚠️ Full exploit code intentionally omitted from this public PR to avoid abuse.
+
+I can provide:
+
+Full PoC test
+
+Execution traces
+
+Suggested fixes
+via HackenProof coordinated disclosure.
+
+Recommended Mitigations
+
+One of the following should be enforced:
+
+Require bytes32(toAddress) == bytes32(uint256(uint160(toAddress)))
+
+Explicitly reject any bytes32 with non-zero high bits
+
+Use address types end-to-end where EVM-only semantics are intended
+
+Introduce a canonicalization helper with strict checks
+
+Disclosure Note
+
+I am submitting this change solely to notify maintainers and initiate responsible disclosure.
+
+Please:
+
+Do not merge this PR as-is
+
+Coordinate remediation privately
+
+Contact me via HackenProof for the complete PoC and exploit details
+
+Thank you for taking security seriously — happy to assist further.
+@jessica-chen-wch
+@jessicawch 
+— HackenProof@MJK
